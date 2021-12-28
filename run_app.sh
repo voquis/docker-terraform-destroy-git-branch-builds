@@ -2,4 +2,4 @@
 
 source ~/.bash_profile
 
-python /usr/local/bin/destroy_git_branch_builds.py
+python -u /usr/local/bin/destroy_git_branch_builds.py

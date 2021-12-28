@@ -8,11 +8,10 @@ It is assumed Terraform and git are already installed.
 
 import os
 import subprocess
-from itertools import chain
 import boto3
 from git import Repo
 
-def get_keys_to_destroy(bucket_name, prefix='', key_exclusions=None):
+def get_keys_to_destroy(bucket_name, prefix='', key_exclusions=None, key_inclusions=None):
     """
     Function to get the list of keys from a bucket containing
     multiple terraform state file keys.
@@ -30,7 +29,10 @@ def get_keys_to_destroy(bucket_name, prefix='', key_exclusions=None):
 
     # Iterate through matching bucket keys and drop any explicit exclusions
     for bucket_key in bucket_keys:
-        if bucket_key.startswith(prefix) and bucket_key not in key_exclusions:
+        if (
+            (bucket_key.startswith(prefix) and bucket_key not in key_exclusions)
+            or bucket_key in key_inclusions
+        ):
             yield bucket_key
         else:
             print(f'Skipping bucket key {bucket_key}')
@@ -45,10 +47,12 @@ def get_git_branches():
     path_to_repo = os.environ.get('REPO_PATH', '.')
     repo = Repo(path_to_repo)
 
+    output = []
     # Get the list of active branches from repo
     for repo_branch in repo.branches:
-        yield repo_branch.name
+        output.append(repo_branch.name)
 
+    return output
 
 def tf_destroy(bucket_name, bucket_key):
     """
@@ -61,7 +65,14 @@ def tf_destroy(bucket_name, bucket_key):
 
     # Change to specified path containing terraform workspace files
     current_dir = os.getcwd()
-    new_dir = os.path.join(current_dir, os.environ.get('TF_WORKSPACE_PATH', ''))
+    absolute_path = os.environ.get('TF_ABSOLUTE_PATH', None)
+    if absolute_path:
+        # Use absolute path if specified
+        new_dir = absolute_path
+    else:
+        # Use relative path if specified
+        new_dir = os.path.join(current_dir, os.environ.get('TF_RELATIVE_PATH', ''))
+
     os.chdir(new_dir)
 
     # Initialise backend
@@ -87,7 +98,8 @@ def tf_destroy(bucket_name, bucket_key):
 # Fetch environment variables
 BUCKET = os.environ.get('TF_BACKEND_S3_BUCKET', None)
 KEY_PREFIX = os.environ.get('TF_KEY_PREFIX', '')
-KEY_EXCLUSIONS = os.environ.get('TF_KEY_EXCLUSIONS', '').split(',')
+KEY_EXCLUSIONS = os.environ.get('TF_KEY_EXCLUSIONS', None).split(',')
+INCLUSIONS = os.environ.get('TF_KEY_INCLUSIONS', None).split(',')
 
 # Check provided environment variable values
 if not BUCKET:
@@ -97,16 +109,17 @@ print(f'Using backend bucket {BUCKET}')
 print(f'Using key prefix {KEY_PREFIX}')
 print(f'Using key exclusions {KEY_EXCLUSIONS}')
 
-print('Skipping the following active branches:')
 BRANCHES = get_git_branches()
+print('Skipping the following active branches:')
 for branch in BRANCHES:
     print(branch)
 
-# Use itertools' chain to combine list and generator
-EXCLUSIONS = chain(BRANCHES, KEY_EXCLUSIONS)
+EXCLUSIONS = BRANCHES + KEY_EXCLUSIONS
+print('Skipping the following combined exclusions:')
+print(EXCLUSIONS)
 
 print('Destroying the following branches:')
-KEYS = get_keys_to_destroy(BUCKET, KEY_PREFIX, EXCLUSIONS)
+KEYS = get_keys_to_destroy(BUCKET, KEY_PREFIX, EXCLUSIONS, INCLUSIONS)
 
 for key in KEYS:
     tf_destroy(BUCKET, key)
