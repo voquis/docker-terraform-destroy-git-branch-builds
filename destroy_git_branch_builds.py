@@ -98,8 +98,8 @@ def tf_destroy(bucket_name, bucket_key):
 # Fetch environment variables
 BUCKET = os.environ.get('TF_BACKEND_S3_BUCKET', None)
 KEY_PREFIX = os.environ.get('TF_KEY_PREFIX', '')
-KEY_EXCLUSIONS = os.environ.get('TF_KEY_EXCLUSIONS', None).split(',')
-INCLUSIONS = os.environ.get('TF_KEY_INCLUSIONS', None).split(',')
+KEY_EXCLUSIONS = os.environ.get('TF_KEY_EXCLUSIONS', '').split(',')
+INCLUSIONS = os.environ.get('TF_KEY_INCLUSIONS', '').split(',')
 
 # Check provided environment variable values
 if not BUCKET:
