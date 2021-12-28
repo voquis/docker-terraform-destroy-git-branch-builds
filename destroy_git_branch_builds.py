@@ -25,10 +25,15 @@ def get_keys_to_destroy(bucket_name, prefix='', key_exclusions=None):
     # Use list comprehension to collapse list of dicts into a list
     bucket_keys = [content['Key'] for content in response['Contents']]
 
+    print('Retrieved the following keys from bucket:')
+    print(bucket_keys)
+
     # Iterate through matching bucket keys and drop any explicit exclusions
     for bucket_key in bucket_keys:
         if bucket_key.startswith(prefix) and bucket_key not in key_exclusions:
             yield bucket_key
+        else:
+            print(f'Skipping bucket key {bucket_key}')
 
 
 def get_git_branches():
@@ -45,7 +50,7 @@ def get_git_branches():
         yield repo_branch.name
 
 
-def tf_destroy(bucket_key):
+def tf_destroy(bucket_name, bucket_key):
     """
     Execute Terraform destroy command on a specific state file key name
     """
@@ -71,9 +76,13 @@ def tf_destroy(bucket_key):
         check=True
     )
 
-    # Destroy infrastructure
+    # Destroy infrastructure and change back to original directory
     subprocess.run(["terraform", "apply", "-destroy", "-auto-approve"], check=True)
     os.chdir(current_dir)
+
+    s3_client = boto3.client('s3')
+    s3_client.delete_object(Bucket=bucket_name, Key=bucket_key)
+
 
 # Fetch environment variables
 BUCKET = os.environ.get('TF_BACKEND_S3_BUCKET', None)
@@ -84,8 +93,10 @@ KEY_EXCLUSIONS = os.environ.get('TF_KEY_EXCLUSIONS', '').split(',')
 if not BUCKET:
     raise ValueError('TF_BACKEND_S3_BUCKET not set.')
 
-
 print(f'Using backend bucket {BUCKET}')
+print(f'Using key prefix {KEY_PREFIX}')
+print(f'Using key exclusions {KEY_EXCLUSIONS}')
+
 print('Skipping the following active branches:')
 BRANCHES = get_git_branches()
 for branch in BRANCHES:
@@ -98,4 +109,4 @@ print('Destroying the following branches:')
 KEYS = get_keys_to_destroy(BUCKET, KEY_PREFIX, EXCLUSIONS)
 
 for key in KEYS:
-    tf_destroy(key)
+    tf_destroy(BUCKET, key)
