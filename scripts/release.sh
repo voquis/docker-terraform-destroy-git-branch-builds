@@ -10,7 +10,7 @@ aws ecr-public get-login-password \
   --password-stdin public.ecr.aws/voquis
 
 # Build image with multiple tags
-docker build \
+docker build . \
   -t public.ecr.aws/voquis/terraform-destroy-git-branch-builds:${GITHUB_REF_NAME} \
   -t public.ecr.aws/voquis/terraform-destroy-git-branch-builds:latest
 
