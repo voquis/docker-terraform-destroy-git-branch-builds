@@ -26,7 +26,7 @@ jobs:
       - uses: docker/build-push-action@v2
         with:
           push: true
-          tags: public.ecr.aws/voquis/terraform-destroy-git-branch-builds:${{ env.GITHUB_REF_NAME }}
+          tags: public.ecr.aws/voquis/terraform-destroy-git-branch-builds:$GITHUB_REF_NAME
       # Build and push latest image
       - uses: docker/build-push-action@v2
         with:
