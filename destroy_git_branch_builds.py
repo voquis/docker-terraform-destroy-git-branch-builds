@@ -80,6 +80,7 @@ def tf_destroy(bucket_name, bucket_key):
         [
             'terraform',
             'init',
+            '-upgrade',
             '-reconfigure',
             f"-backend-config=profile={aws_profile}",
             f"-backend-config=key={bucket_key}"
