@@ -4,7 +4,9 @@ WORKDIR /app
 
 # Install dependencies
 RUN apt-get update -y
-RUN apt-get install -y git
+RUN apt-get install -y \
+  git \
+  curl
 
 # Copy application files
 COPY destroy_git_branch_builds.py /usr/local/bin/destroy_git_branch_builds.py
